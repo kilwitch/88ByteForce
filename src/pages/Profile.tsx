@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Save } from 'lucide-react';
+import { Camera, Save, Mail, Phone, Building, MapPin, BadgeCheck, Clock, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
 
 const Profile = () => {
   const { toast } = useToast();
@@ -21,8 +22,8 @@ const Profile = () => {
   const [formData, setFormData] = useState({
     name: user?.name || "Damid",
     email: user?.email || "damid@example.com",
-    phone: "",
-    address: "",
+    phone: "+1 (555) 123-4567",
+    address: "123 Main Street, San Francisco, CA 94105",
     company: "Bill AI Pro"
   });
   
@@ -44,107 +45,147 @@ const Profile = () => {
   return (
     <MainLayout>
       <div className="p-6 max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-brand-blue mb-2">My Profile</h1>
-        <p className="text-muted-foreground mb-6">Manage your personal information and preferences</p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-brand-blue to-brand-lightBlue bg-clip-text text-transparent">My Profile</h1>
+            <p className="text-muted-foreground">Manage your personal information and preferences</p>
+          </div>
+          <Badge variant="outline" className="bg-brand-blue/10 text-brand-blue border-brand-blue/20 px-3 py-1">
+            <BadgeCheck size={14} className="mr-1" /> Premium Account
+          </Badge>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Left Column - Profile Picture */}
-          <Card className="md:col-span-1">
-            <CardHeader>
+          <Card className="md:col-span-1 border-none shadow-lg overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-brand-blue to-brand-lightBlue text-white">
               <CardTitle>Profile Picture</CardTitle>
-              <CardDescription>
+              <CardDescription className="text-white/80">
                 Upload or change your profile picture
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col items-center">
-              <Avatar className="h-36 w-36 mb-4">
+            <CardContent className="flex flex-col items-center p-6 bg-white">
+              <Avatar className="h-40 w-40 mb-6 ring-4 ring-brand-blue/20 ring-offset-2">
                 <AvatarImage src="" alt={formData.name} />
-                <AvatarFallback className="bg-brand-blue text-white text-4xl">
+                <AvatarFallback className="bg-gradient-to-br from-brand-blue to-brand-lightBlue text-white text-4xl">
                   {formData.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               
-              <Button className="w-full mb-2" variant="outline">
-                <Camera size={16} className="mr-2" />
-                Upload New Picture
-              </Button>
-              <Button className="w-full" variant="outline" color="destructive">
-                Remove Picture
-              </Button>
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <Button className="w-full" variant="outline">
+                  <Camera size={16} className="mr-2" />
+                  Upload
+                </Button>
+                <Button className="w-full" variant="outline" color="destructive">
+                  Remove
+                </Button>
+              </div>
             </CardContent>
           </Card>
           
           {/* Right Column - Profile Info */}
-          <Card className="md:col-span-2">
-            <CardHeader>
+          <Card className="md:col-span-2 border-none shadow-lg overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-brand-blue/90 to-brand-lightBlue text-white">
               <CardTitle>Personal Information</CardTitle>
-              <CardDescription>
+              <CardDescription className="text-white/80">
                 Update your personal details
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="bg-white p-6">
               <form className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input 
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                    />
+                    <Label htmlFor="name" className="text-brand-blue font-medium">Full Name</Label>
+                    <div className="relative">
+                      <Input 
+                        id="name"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        className="pl-10 border-gray-300 focus:border-brand-lightBlue focus:ring-brand-lightBlue"
+                      />
+                      <div className="absolute left-3 top-2.5 text-gray-500">
+                        <BadgeCheck size={16} />
+                      </div>
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input 
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                    />
+                    <Label htmlFor="email" className="text-brand-blue font-medium">Email Address</Label>
+                    <div className="relative">
+                      <Input 
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="pl-10 border-gray-300 focus:border-brand-lightBlue focus:ring-brand-lightBlue"
+                      />
+                      <div className="absolute left-3 top-2.5 text-gray-500">
+                        <Mail size={16} />
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input 
-                      id="phone"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      placeholder="Enter your phone number"
-                    />
+                    <Label htmlFor="phone" className="text-brand-blue font-medium">Phone Number</Label>
+                    <div className="relative">
+                      <Input 
+                        id="phone"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className="pl-10 border-gray-300 focus:border-brand-lightBlue focus:ring-brand-lightBlue"
+                      />
+                      <div className="absolute left-3 top-2.5 text-gray-500">
+                        <Phone size={16} />
+                      </div>
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="company">Company/Organization</Label>
-                    <Input 
-                      id="company"
-                      name="company"
-                      value={formData.company}
-                      onChange={handleInputChange}
-                    />
+                    <Label htmlFor="company" className="text-brand-blue font-medium">Company/Organization</Label>
+                    <div className="relative">
+                      <Input 
+                        id="company"
+                        name="company"
+                        value={formData.company}
+                        onChange={handleInputChange}
+                        className="pl-10 border-gray-300 focus:border-brand-lightBlue focus:ring-brand-lightBlue"
+                      />
+                      <div className="absolute left-3 top-2.5 text-gray-500">
+                        <Building size={16} />
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input 
-                    id="address"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    placeholder="Enter your address"
-                  />
+                  <Label htmlFor="address" className="text-brand-blue font-medium">Address</Label>
+                  <div className="relative">
+                    <Input 
+                      id="address"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      className="pl-10 border-gray-300 focus:border-brand-lightBlue focus:ring-brand-lightBlue"
+                    />
+                    <div className="absolute left-3 top-2.5 text-gray-500">
+                      <MapPin size={16} />
+                    </div>
+                  </div>
                 </div>
                 
-                <Separator className="my-4" />
+                <Separator className="my-6" />
                 
                 <div className="flex justify-end">
-                  <Button onClick={handleSave} className="w-full md:w-auto">
+                  <Button 
+                    onClick={handleSave} 
+                    className="px-6 bg-gradient-to-r from-brand-blue to-brand-lightBlue hover:opacity-90"
+                  >
                     <Save size={16} className="mr-2" />
                     Save Changes
                   </Button>
@@ -154,28 +195,52 @@ const Profile = () => {
           </Card>
           
           {/* Activity Section */}
-          <Card className="md:col-span-3">
-            <CardHeader>
+          <Card className="md:col-span-3 border-none shadow-lg overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-brand-blue/80 to-brand-lightBlue/80 text-white">
               <CardTitle>Account Summary</CardTitle>
-              <CardDescription>
+              <CardDescription className="text-white/80">
                 Overview of your account activity
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-lg bg-blue-50 border border-blue-100">
-                  <h3 className="font-semibold text-brand-blue">Total Bills Processed</h3>
-                  <p className="text-2xl font-bold mt-2">24</p>
+            <CardContent className="p-6 bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-6 border border-blue-200">
+                  <div className="absolute top-0 right-0 w-16 h-16 -mt-8 -mr-8 bg-blue-200 rounded-full opacity-50"></div>
+                  <div className="relative">
+                    <div className="flex items-center mb-2 text-brand-blue font-medium">
+                      <FileText size={18} className="mr-2" />
+                      Total Bills Processed
+                    </div>
+                    <p className="text-3xl font-bold text-brand-blue">24</p>
+                    <p className="text-xs text-brand-blue/70 mt-2 flex items-center">
+                      <Clock size={12} className="mr-1" />
+                      Last processed 2 days ago
+                    </p>
+                  </div>
                 </div>
                 
-                <div className="p-4 rounded-lg bg-green-50 border border-green-100">
-                  <h3 className="font-semibold text-green-700">Total Saved</h3>
-                  <p className="text-2xl font-bold mt-2">$320.45</p>
+                <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-6 border border-green-200">
+                  <div className="absolute top-0 right-0 w-16 h-16 -mt-8 -mr-8 bg-green-200 rounded-full opacity-50"></div>
+                  <div className="relative">
+                    <div className="flex items-center mb-2 text-green-700 font-medium">
+                      <BadgeCheck size={18} className="mr-2" />
+                      Total Saved
+                    </div>
+                    <p className="text-3xl font-bold text-green-700">$320.45</p>
+                    <p className="text-xs text-green-700/70 mt-2">Compared to average spending</p>
+                  </div>
                 </div>
                 
-                <div className="p-4 rounded-lg bg-purple-50 border border-purple-100">
-                  <h3 className="font-semibold text-purple-700">Account Type</h3>
-                  <p className="text-2xl font-bold mt-2">Premium</p>
+                <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-6 border border-purple-200">
+                  <div className="absolute top-0 right-0 w-16 h-16 -mt-8 -mr-8 bg-purple-200 rounded-full opacity-50"></div>
+                  <div className="relative">
+                    <div className="flex items-center mb-2 text-purple-700 font-medium">
+                      <BadgeCheck size={18} className="mr-2" />
+                      Account Type
+                    </div>
+                    <p className="text-3xl font-bold text-purple-700">Premium</p>
+                    <p className="text-xs text-purple-700/70 mt-2">Active until Apr 12, 2026</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
