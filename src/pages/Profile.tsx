@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layouts/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Save, Mail, Phone, Building, MapPin, BadgeCheck, Clock, FileText } from 'lucide-react';
+import { Camera, Save, Mail, Phone, Building, MapPin, BadgeCheck, Clock, FileText, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ const Profile = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Use actual user data or fallback to "Damid" if not available
   const [formData, setFormData] = useState({
@@ -27,12 +28,33 @@ const Profile = () => {
     company: "Bill AI Pro"
   });
   
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+  };
+  
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileImage(reader.result as string);
+        toast({
+          title: "Image uploaded",
+          description: "Your profile picture has been updated."
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
   
   const handleSave = () => {
@@ -61,25 +83,32 @@ const Profile = () => {
             <CardHeader className="bg-gradient-to-r from-brand-blue to-brand-lightBlue text-white">
               <CardTitle>Profile Picture</CardTitle>
               <CardDescription className="text-white/80">
-                Upload or change your profile picture
+                Upload your profile picture
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center p-6 bg-white">
               <Avatar className="h-40 w-40 mb-6 ring-4 ring-brand-blue/20 ring-offset-2">
-                <AvatarImage src="" alt={formData.name} />
+                <AvatarImage src={profileImage || ""} alt={formData.name} />
                 <AvatarFallback className="bg-gradient-to-br from-brand-blue to-brand-lightBlue text-white text-4xl">
                   {formData.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               
-              <div className="grid grid-cols-2 gap-3 w-full">
-                <Button className="w-full" variant="outline">
-                  <Camera size={16} className="mr-2" />
-                  Upload
+              <div className="w-full">
+                <Button className="w-full" variant="outline" onClick={triggerFileInput}>
+                  <Upload size={16} className="mr-2" />
+                  Upload Image
                 </Button>
-                <Button className="w-full" variant="outline" color="destructive">
-                  Remove
-                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Recommended: Square image, 500x500 pixels or larger
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -195,7 +224,7 @@ const Profile = () => {
           </Card>
           
           {/* Activity Section */}
-          <Card className="md:col-span-3 border-none shadow-lg overflow-hidden">
+          <Card className="md:col-span-3 border-none shadow-lg overflow-hidden bg-white">
             <CardHeader className="bg-gradient-to-r from-brand-blue/80 to-brand-lightBlue/80 text-white">
               <CardTitle>Account Summary</CardTitle>
               <CardDescription className="text-white/80">
@@ -226,7 +255,7 @@ const Profile = () => {
                       <BadgeCheck size={18} className="mr-2" />
                       Total Saved
                     </div>
-                    <p className="text-3xl font-bold text-green-700">$320.45</p>
+                    <p className="text-3xl font-bold text-green-700">₹8,320.45</p>
                     <p className="text-xs text-green-700/70 mt-2">Compared to average spending</p>
                   </div>
                 </div>
