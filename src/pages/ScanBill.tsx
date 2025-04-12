@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { ScanEye, Upload, Camera, X, Check, FileUp, ImageIcon, Loader2, Send } from 'lucide-react';
 import MainLayout from '@/components/layouts/MainLayout';
+import * as Tesseract from 'tesseract.js';
 
 // Bill data interface
 interface BillData {
@@ -36,6 +38,7 @@ const ScanBill = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const categories = [
     "Utilities", 
@@ -108,66 +111,62 @@ const ScanBill = () => {
     });
   };
   
+  const extractDataFromText = (text: string) => {
+    console.log("Extracted text:", text);
+    
+    // Extract vendor (usually the first few lines contain business name)
+    const lines = text.split('\n').filter(line => line.trim() !== '');
+    const vendorName = lines[0] || 'Unknown Vendor';
+    
+    // Extract amount (look for patterns like $ followed by numbers)
+    const amountMatch = text.match(/(?:total|amount|balance|sum|due):?\s*[$€£¥]?\s*(\d+[.,]\d+)/i) || 
+                        text.match(/[$€£¥]\s*(\d+[.,]\d+)/i) ||
+                        text.match(/(\d+[.,]\d+)(?:\s*[$€£¥])/i);
+    const amount = amountMatch ? amountMatch[1] : '';
+    
+    // Extract date (look for date formats)
+    const dateMatch = text.match(/(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i) ||
+                      text.match(/(\d{2,4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/i) ||
+                      text.match(/([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{2,4})/i);
+    const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+    
+    // Extract description (look for description or item or memo fields)
+    const descriptionMatch = text.match(/description:?\s*([^\n]+)/i) ||
+                            text.match(/item:?\s*([^\n]+)/i) ||
+                            text.match(/memo:?\s*([^\n]+)/i);
+    const description = descriptionMatch ? descriptionMatch[1] : 'Bill payment';
+    
+    return {
+      vendor: vendorName,
+      amount,
+      date,
+      category: 'Utilities', // Default category
+      description
+    };
+  };
+  
   const processBill = async () => {
     if (!imageFile) return;
     
     setIsScanning(true);
     
     try {
-      // Simulate OCR and AI processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Use Tesseract.js for OCR processing
+      const result = await Tesseract.recognize(
+        imageFile,
+        'eng',
+        { logger: m => console.log(m) }
+      );
       
-      // Use the filename to determine the type of bill for demo purposes
-      // In a real app, this would be replaced by actual OCR processing
-      const filename = imageFile.name.toLowerCase();
-      
-      // More realistic mock data based on common bill types
-      let mockData;
-      
-      if (filename.includes('electric') || filename.includes('power')) {
-        mockData = {
-          vendor: 'City Power & Electric Co.',
-          amount: '142.50',
-          date: new Date().toISOString().split('T')[0],
-          description: 'Monthly electricity bill'
-        };
-      } else if (filename.includes('water')) {
-        mockData = {
-          vendor: 'Municipal Water Services',
-          amount: '78.25',
-          date: new Date().toISOString().split('T')[0],
-          description: 'Quarterly water bill'
-        };
-      } else if (filename.includes('internet') || filename.includes('wifi')) {
-        mockData = {
-          vendor: 'FastConnect Internet',
-          amount: '89.99',
-          date: new Date().toISOString().split('T')[0],
-          description: 'Monthly internet service'
-        };
-      } else if (filename.includes('phone') || filename.includes('mobile')) {
-        mockData = {
-          vendor: 'TeleMobile Services',
-          amount: '65.00',
-          date: new Date().toISOString().split('T')[0],
-          description: 'Monthly phone plan'
-        };
-      } else {
-        // Default mock data
-        mockData = {
-          vendor: 'Generic Vendor',
-          amount: '100.00',
-          date: new Date().toISOString().split('T')[0],
-          description: 'Bill payment'
-        };
-      }
+      const extractedText = result.data.text;
+      const extractedData = extractDataFromText(extractedText);
       
       setBillData({
         ...billData,
-        vendor: mockData.vendor,
-        amount: mockData.amount,
-        date: mockData.date,
-        description: mockData.description
+        vendor: extractedData.vendor,
+        amount: extractedData.amount,
+        date: extractedData.date,
+        description: extractedData.description
       });
       
       setIsProcessed(true);
@@ -177,6 +176,7 @@ const ScanBill = () => {
         description: "We've extracted the information from your bill."
       });
     } catch (error) {
+      console.error("OCR processing error:", error);
       toast({
         title: "Processing failed",
         description: "There was an error processing your bill. Please try again.",

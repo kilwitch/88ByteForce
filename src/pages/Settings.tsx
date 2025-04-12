@@ -8,10 +8,12 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import MainLayout from '@/components/layouts/MainLayout';
 
 const Settings = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const handleSave = () => {
     toast({
@@ -44,11 +46,11 @@ const Settings = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>
-                  <Input id="name" defaultValue="John Doe" />
+                  <Input id="name" defaultValue={user?.name || "Damid"} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue="john.doe@example.com" />
+                  <Input id="email" type="email" defaultValue={user?.email || "damid@example.com"} />
                 </div>
                 
                 <Separator className="my-4" />
