@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { ScanEye, Upload, Camera, X, Check, FileUp, ImageIcon, Loader2, Send } from 'lucide-react';
 import MainLayout from '@/components/layouts/MainLayout';
 
@@ -113,18 +113,54 @@ const ScanBill = () => {
     
     setIsScanning(true);
     
-    // Simulate OCR and AI processing
     try {
-      // In a real app, you would send the image to a backend service for OCR and AI processing
-      await new Promise(resolve => setTimeout(resolve, 2500)); // Simulation delay
+      // Simulate OCR and AI processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Mock data from AI processing
-      const mockData = {
-        vendor: 'Electric Company Inc.',
-        amount: '142.50',
-        date: '2023-04-05',
-        description: 'Monthly electricity bill'
-      };
+      // Use the filename to determine the type of bill for demo purposes
+      // In a real app, this would be replaced by actual OCR processing
+      const filename = imageFile.name.toLowerCase();
+      
+      // More realistic mock data based on common bill types
+      let mockData;
+      
+      if (filename.includes('electric') || filename.includes('power')) {
+        mockData = {
+          vendor: 'City Power & Electric Co.',
+          amount: '142.50',
+          date: new Date().toISOString().split('T')[0],
+          description: 'Monthly electricity bill'
+        };
+      } else if (filename.includes('water')) {
+        mockData = {
+          vendor: 'Municipal Water Services',
+          amount: '78.25',
+          date: new Date().toISOString().split('T')[0],
+          description: 'Quarterly water bill'
+        };
+      } else if (filename.includes('internet') || filename.includes('wifi')) {
+        mockData = {
+          vendor: 'FastConnect Internet',
+          amount: '89.99',
+          date: new Date().toISOString().split('T')[0],
+          description: 'Monthly internet service'
+        };
+      } else if (filename.includes('phone') || filename.includes('mobile')) {
+        mockData = {
+          vendor: 'TeleMobile Services',
+          amount: '65.00',
+          date: new Date().toISOString().split('T')[0],
+          description: 'Monthly phone plan'
+        };
+      } else {
+        // Default mock data
+        mockData = {
+          vendor: 'Generic Vendor',
+          amount: '100.00',
+          date: new Date().toISOString().split('T')[0],
+          description: 'Bill payment'
+        };
+      }
       
       setBillData({
         ...billData,
@@ -184,7 +220,7 @@ const ScanBill = () => {
     });
     
     // Navigate back to dashboard
-    navigate('/dashboard');
+    navigate('/bills');
   };
 
   return (

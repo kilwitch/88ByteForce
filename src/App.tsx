@@ -9,6 +9,10 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import ScanBill from "./pages/ScanBill";
+import Bills from "./pages/Bills";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
+import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
@@ -42,6 +46,38 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <ScanBill />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/bills" 
+              element={
+                <ProtectedRoute>
+                  <Bills />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/reports" 
+              element={
+                <ProtectedRoute>
+                  <Reports />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/help" 
+              element={
+                <ProtectedRoute>
+                  <Help />
                 </ProtectedRoute>
               } 
             />
