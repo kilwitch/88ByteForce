@@ -118,23 +118,80 @@ const ScanBill = () => {
     const lines = text.split('\n').filter(line => line.trim() !== '');
     const vendorName = lines[0] || 'Unknown Vendor';
     
-    // Extract amount (look for patterns like $ followed by numbers)
-    const amountMatch = text.match(/(?:total|amount|balance|sum|due):?\s*[$€£¥]?\s*(\d+[.,]\d+)/i) || 
-                        text.match(/[$€£¥]\s*(\d+[.,]\d+)/i) ||
-                        text.match(/(\d+[.,]\d+)(?:\s*[$€£¥])/i);
-    const amount = amountMatch ? amountMatch[1] : '';
+    // Enhanced amount extraction - look for common patterns indicating totals
+    // Look for patterns like "Total: $X.XX", "Amount Due: $X.XX", "Balance: $X.XX", etc.
+    const totalPatterns = [
+      /total[\s:].*?(\d+[.,]\d+)/i,
+      /amount\s*due[\s:].*?(\d+[.,]\d+)/i, 
+      /balance[\s:].*?(\d+[.,]\d+)/i,
+      /sum[\s:].*?(\d+[.,]\d+)/i,
+      /due[\s:].*?(\d+[.,]\d+)/i,
+      /(?:^|[\s])(\d+[.,]\d+)(?:\s*total)/i,
+      /\$\s*(\d+[.,]\d+)/i,
+      /(\d+[.,]\d+)(?:\s*\$)/i,
+      /(?:^|[\s])(\d+[.,]\d+)(?:\s*$|[\s])/i // Fallback for standalone numbers
+    ];
     
-    // Extract date (look for date formats)
-    const dateMatch = text.match(/(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i) ||
-                      text.match(/(\d{2,4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/i) ||
-                      text.match(/([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{2,4})/i);
-    const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+    let amount = '';
+    // Try each pattern until we find a match
+    for (const pattern of totalPatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        amount = match[1];
+        break;
+      }
+    }
     
-    // Extract description (look for description or item or memo fields)
-    const descriptionMatch = text.match(/description:?\s*([^\n]+)/i) ||
-                            text.match(/item:?\s*([^\n]+)/i) ||
-                            text.match(/memo:?\s*([^\n]+)/i);
-    const description = descriptionMatch ? descriptionMatch[1] : 'Bill payment';
+    // Enhanced date extraction - look for various date formats at the top of the document
+    // Look in the first 10 lines which typically contain header info including dates
+    const headerText = lines.slice(0, 10).join(' ');
+    
+    const datePatterns = [
+      /(?:date|issued|invoice date|bill date)[\s:]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+      /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+      /(\d{2,4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/i,
+      /([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{2,4})/i,
+      /(\d{1,2}\s+[A-Za-z]{3,9},?\s+\d{2,4})/i
+    ];
+    
+    let date = '';
+    // Try each pattern until we find a match
+    for (const pattern of datePatterns) {
+      const match = headerText.match(pattern);
+      if (match && match[1]) {
+        date = match[1];
+        break;
+      }
+    }
+    
+    // If no date is found, use current date as fallback
+    if (!date) {
+      date = new Date().toISOString().split('T')[0];
+    }
+    
+    // Extract description (look for description, items, or memo fields)
+    const descriptionPatterns = [
+      /description[\s:]*([^\n]+)/i,
+      /item[\s:]*([^\n]+)/i,
+      /memo[\s:]*([^\n]+)/i,
+      /note[\s:]*([^\n]+)/i,
+      /remarks[\s:]*([^\n]+)/i
+    ];
+    
+    let description = 'Bill payment';
+    // Try each pattern until we find a match
+    for (const pattern of descriptionPatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        description = match[1].trim();
+        break;
+      }
+    }
+    
+    // If description is too long, trim it
+    if (description.length > 100) {
+      description = description.substring(0, 97) + '...';
+    }
     
     return {
       vendor: vendorName,
