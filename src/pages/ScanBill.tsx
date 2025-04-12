@@ -22,6 +22,17 @@ interface BillData {
   description: string;
 }
 
+// Category mapping based on common keywords
+const categoryKeywordMap: Record<string, string[]> = {
+  "Utilities": ["electric", "water", "gas", "utility", "energy", "power", "bill", "telecom", "internet", "phone", "broadband", "wifi"],
+  "Office Supplies": ["office", "supplies", "paper", "ink", "toner", "printer", "stationery", "pen", "pencil", "marker", "notebook", "desk"],
+  "Travel": ["travel", "hotel", "flight", "airline", "car rental", "taxi", "uber", "lyft", "train", "bus", "transportation", "lodging", "airbnb"],
+  "Food & Dining": ["restaurant", "cafe", "coffee", "food", "meal", "lunch", "dinner", "breakfast", "grocery", "supermarket", "catering"],
+  "Rent & Lease": ["rent", "lease", "property", "apartment", "office space", "building", "real estate", "storage", "parking"],
+  "Insurance": ["insurance", "policy", "premium", "coverage", "health", "life", "auto", "car", "vehicle", "property", "liability"],
+  "Services": ["service", "consulting", "freelance", "legal", "accounting", "maintenance", "cleaning", "repair", "subscription", "membership"],
+};
+
 const ScanBill = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -110,64 +121,137 @@ const ScanBill = () => {
       description: ''
     });
   };
+
+  // Determine the most likely category based on the text content
+  const guessCategoryFromText = (text: string): string => {
+    const lowerText = text.toLowerCase();
+    
+    // Count matches for each category
+    const categoryCounts = Object.entries(categoryKeywordMap).map(([category, keywords]) => {
+      const matchCount = keywords.reduce((count, keyword) => {
+        return count + (lowerText.includes(keyword.toLowerCase()) ? 1 : 0);
+      }, 0);
+      return { category, matchCount };
+    });
+    
+    // Sort by match count, descending
+    categoryCounts.sort((a, b) => b.matchCount - a.matchCount);
+    
+    // Return the category with the most matches, or "Others" if no matches
+    return categoryCounts[0].matchCount > 0 ? categoryCounts[0].category : "Others";
+  };
   
   const extractDataFromText = (text: string) => {
     console.log("Extracted text:", text);
     
-    // Extract vendor (usually the first few lines contain business name)
+    // Extract vendor name (usually in the first few lines, often the largest text or in a specific format)
+    // Split text into lines and remove empty ones
     const lines = text.split('\n').filter(line => line.trim() !== '');
-    const vendorName = lines[0] || 'Unknown Vendor';
     
-    // Enhanced amount extraction - look for common patterns indicating totals
-    // Look for patterns like "Total: $X.XX", "Amount Due: $X.XX", "Balance: $X.XX", etc.
+    // Vendor is often in the first 1-3 lines of the receipt
+    // We'll take the first non-empty, non-numeric, substantial line (more than 2 characters)
+    let vendorName = 'Unknown Vendor';
+    for (let i = 0; i < Math.min(5, lines.length); i++) {
+      const line = lines[i].trim();
+      // Skip lines that are dates, amounts, or too short
+      if (line.length > 2 && 
+          !line.match(/^\d+[\/\-\.]\d+[\/\-\.]\d+$/) && // Not a date
+          !line.match(/^\$?\d+\.\d+$/) && // Not just an amount
+          !line.match(/^[0-9\s]+$/)) { // Not just numbers
+        vendorName = line;
+        break;
+      }
+    }
+    
+    // Extract total amount - look for keywords that indicate a total
+    // Common patterns: "Total: $X.XX", "Amount Due: $X.XX", "Grand Total: $X.XX", etc.
+    // OR a row with a dollar sign near the bottom of the receipt
     const totalPatterns = [
-      /total[\s:].*?(\d+[.,]\d+)/i,
-      /amount\s*due[\s:].*?(\d+[.,]\d+)/i, 
-      /balance[\s:].*?(\d+[.,]\d+)/i,
-      /sum[\s:].*?(\d+[.,]\d+)/i,
-      /due[\s:].*?(\d+[.,]\d+)/i,
-      /(?:^|[\s])(\d+[.,]\d+)(?:\s*total)/i,
-      /\$\s*(\d+[.,]\d+)/i,
-      /(\d+[.,]\d+)(?:\s*\$)/i,
-      /(?:^|[\s])(\d+[.,]\d+)(?:\s*$|[\s])/i // Fallback for standalone numbers
+      /(?:total|amount|sum|due|balance)(?:\s*:|\s+)\s*[$]?\s*(\d+[.,]\d+)/i,
+      /(?:total|amount|sum|due)(?:\s*:|\s+)\s*[$]?\s*(\d+)/i,
+      /(?:grand\s+total|total\s+amount)(?:\s*:|\s+)\s*[$]?\s*(\d+[.,]\d+)/i,
+      /(?:total|amount|sum|due|balance)(?:\s+to\s+pay)(?:\s*:|\s+)\s*[$]?\s*(\d+[.,]\d+)/i,
+      /\$\s*(\d+[.,]\d+)(?:\s*total)/i,
+      /total\s+\$\s*(\d+[.,]\d+)/i,
+      /final\s+(?:total|amount)(?:\s*:|\s+)\s*[$]?\s*(\d+[.,]\d+)/i,
+      /(?:sub)?total\s*\$?\s*(\d+[.,]\d+)/i
     ];
     
+    // Start with the last quarter of the text first for totals (they're usually at the bottom)
+    const lowerHalfText = text.slice(text.length / 2);
     let amount = '';
+    
     // Try each pattern until we find a match
     for (const pattern of totalPatterns) {
-      const match = text.match(pattern);
+      // Try the lower half first for totals (they're usually at the bottom)
+      let match = lowerHalfText.match(pattern);
+      if (match && match[1]) {
+        amount = match[1];
+        break;
+      }
+      
+      // If not found in lower half, try the full text
+      match = text.match(pattern);
       if (match && match[1]) {
         amount = match[1];
         break;
       }
     }
     
-    // Enhanced date extraction - look for various date formats at the top of the document
-    // Look in the first 10 lines which typically contain header info including dates
-    const headerText = lines.slice(0, 10).join(' ');
+    // If still not found, look for dollar amounts in the last few lines
+    if (!amount) {
+      // Get the last few lines where the total is likely to be
+      const lastFewLines = lines.slice(-5);
+      for (const line of lastFewLines) {
+        const dollarMatch = line.match(/\$\s*(\d+[.,]\d+)/);
+        if (dollarMatch && dollarMatch[1]) {
+          amount = dollarMatch[1];
+          break;
+        }
+      }
+    }
+    
+    // Enhanced date extraction - look in the first 1/3 of the text which typically contains header info
+    const topThirdText = text.slice(0, text.length / 3);
     
     const datePatterns = [
       /(?:date|issued|invoice date|bill date)[\s:]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
       /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
       /(\d{2,4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/i,
-      /([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{2,4})/i,
-      /(\d{1,2}\s+[A-Za-z]{3,9},?\s+\d{2,4})/i
+      /([A-Za-z]{3,9}\s+\d{1,2}(?:[,\s]+)?\d{2,4})/i,
+      /(\d{1,2}\s+[A-Za-z]{3,9}(?:[,\s]+)?\d{2,4})/i
     ];
     
     let date = '';
-    // Try each pattern until we find a match
+    
+    // Try each pattern in the top third first
     for (const pattern of datePatterns) {
-      const match = headerText.match(pattern);
+      const match = topThirdText.match(pattern);
       if (match && match[1]) {
         date = match[1];
         break;
       }
     }
     
-    // If no date is found, use current date as fallback
+    // If not found in top third, check the entire text
     if (!date) {
-      date = new Date().toISOString().split('T')[0];
+      for (const pattern of datePatterns) {
+        const match = text.match(pattern);
+        if (match && match[1]) {
+          date = match[1];
+          break;
+        }
+      }
     }
+    
+    // If still no date is found, use current date as fallback
+    if (!date) {
+      const today = new Date();
+      date = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    }
+    
+    // Guess the category based on text content
+    const guessedCategory = guessCategoryFromText(text);
     
     // Extract description (look for description, items, or memo fields)
     const descriptionPatterns = [
@@ -175,16 +259,28 @@ const ScanBill = () => {
       /item[\s:]*([^\n]+)/i,
       /memo[\s:]*([^\n]+)/i,
       /note[\s:]*([^\n]+)/i,
-      /remarks[\s:]*([^\n]+)/i
+      /remarks[\s:]*([^\n]+)/i,
+      /details[\s:]*([^\n]+)/i
     ];
     
-    let description = 'Bill payment';
+    let description = '';
     // Try each pattern until we find a match
     for (const pattern of descriptionPatterns) {
       const match = text.match(pattern);
       if (match && match[1]) {
         description = match[1].trim();
         break;
+      }
+    }
+    
+    // If no description found, use a default or extract from middle of receipt
+    if (!description) {
+      // Extract something from the middle of the receipt as a fallback
+      const middleIndex = Math.floor(lines.length / 2);
+      if (lines[middleIndex] && lines[middleIndex].length > 3) {
+        description = lines[middleIndex].trim();
+      } else {
+        description = 'Bill from ' + vendorName;
       }
     }
     
@@ -197,7 +293,7 @@ const ScanBill = () => {
       vendor: vendorName,
       amount,
       date,
-      category: 'Utilities', // Default category
+      category: guessedCategory,
       description
     };
   };
@@ -208,11 +304,15 @@ const ScanBill = () => {
     setIsScanning(true);
     
     try {
-      // Use Tesseract.js for OCR processing
+      // Use Tesseract.js for OCR processing with enhanced configuration
       const result = await Tesseract.recognize(
         imageFile,
         'eng',
-        { logger: m => console.log(m) }
+        { 
+          logger: m => console.log(m),
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,/:$%()- ',
+          tessedit_pageseg_mode: '1' // Automatic page segmentation with OSD (orientation & script detection)
+        }
       );
       
       const extractedText = result.data.text;
@@ -223,6 +323,7 @@ const ScanBill = () => {
         vendor: extractedData.vendor,
         amount: extractedData.amount,
         date: extractedData.date,
+        category: extractedData.category,
         description: extractedData.description
       });
       
@@ -288,9 +389,9 @@ const ScanBill = () => {
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column: Upload/Scan Area */}
-          <Card>
+          <Card className="bg-white shadow-md border border-gray-100">
             <CardHeader>
-              <CardTitle>Upload Bill Image</CardTitle>
+              <CardTitle className="text-brand-blue">Upload Bill Image</CardTitle>
               <CardDescription>
                 Upload a clear image of your bill for best results
               </CardDescription>
@@ -302,15 +403,15 @@ const ScanBill = () => {
                   ${imagePreview ? 'border-primary' : 'border-gray-300'} 
                   hover:border-primary transition-colors
                   flex flex-col items-center justify-center
-                  min-h-[300px]
+                  min-h-[300px] bg-gray-50
                 `}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
               >
                 {!imagePreview ? (
                   <div className="space-y-4">
-                    <div className="bg-muted/50 rounded-full p-4 inline-flex">
-                      <Upload size={24} className="text-muted-foreground" />
+                    <div className="bg-brand-blue/10 rounded-full p-4 inline-flex">
+                      <Upload size={24} className="text-brand-blue" />
                     </div>
                     <div>
                       <p className="text-lg font-medium">Drag and drop or click to upload</p>
@@ -362,6 +463,7 @@ const ScanBill = () => {
                   <Button
                     onClick={processBill}
                     disabled={isScanning || isProcessed}
+                    className="bg-brand-blue hover:bg-brand-blue/90"
                   >
                     {isScanning ? (
                       <>
@@ -386,9 +488,9 @@ const ScanBill = () => {
           </Card>
           
           {/* Right Column: Form */}
-          <Card>
+          <Card className="bg-white shadow-md border border-gray-100">
             <CardHeader>
-              <CardTitle>Bill Information</CardTitle>
+              <CardTitle className="text-brand-blue">Bill Information</CardTitle>
               <CardDescription>
                 {isProcessed 
                   ? "Review and edit the extracted information" 
@@ -406,6 +508,7 @@ const ScanBill = () => {
                     onChange={handleInputChange}
                     placeholder={isProcessed ? "" : "Will be extracted from image"}
                     disabled={!isProcessed && !imagePreview}
+                    className="border-gray-300"
                   />
                 </div>
                 
@@ -420,6 +523,7 @@ const ScanBill = () => {
                       type="text"
                       placeholder={isProcessed ? "" : "0.00"}
                       disabled={!isProcessed && !imagePreview}
+                      className="border-gray-300"
                     />
                   </div>
                   <div className="space-y-2">
@@ -429,8 +533,10 @@ const ScanBill = () => {
                       name="date"
                       value={billData.date}
                       onChange={handleInputChange}
-                      type="date"
+                      type="text"
                       disabled={!isProcessed && !imagePreview}
+                      className="border-gray-300"
+                      placeholder="MM/DD/YYYY"
                     />
                   </div>
                 </div>
@@ -442,7 +548,7 @@ const ScanBill = () => {
                     onValueChange={handleSelectChange}
                     disabled={!isProcessed && !imagePreview}
                   >
-                    <SelectTrigger id="category">
+                    <SelectTrigger id="category" className="border-gray-300">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -464,6 +570,7 @@ const ScanBill = () => {
                     onChange={handleInputChange}
                     placeholder="Additional notes"
                     disabled={!isProcessed && !imagePreview}
+                    className="border-gray-300"
                   />
                 </div>
               </form>
@@ -472,6 +579,7 @@ const ScanBill = () => {
               <Button
                 onClick={handleSubmit}
                 disabled={!isProcessed}
+                className="bg-brand-blue hover:bg-brand-blue/90"
               >
                 <Send size={16} className="mr-2" />
                 Save Bill
